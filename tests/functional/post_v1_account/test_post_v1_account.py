@@ -1,0 +1,66 @@
+import random
+from json import loads
+
+from requests import Response
+
+from dm_api_account.apis.login_api import LoginApi
+from dm_api_account.apis.account_api import AccountApi
+from api_mailhog.apis.mailhog_api import MailhogApi
+
+
+def test_post_v1_account():
+    host = "185.185.143.231"
+
+    account_api = AccountApi(f"http://{host}:5051")
+    login_api = LoginApi(f"http://{host}:5051")
+    mail_api = MailhogApi(f"http://{host}:5025")
+
+    number = random.randint(0, 10000)
+    login = f"scarface_test{number}"
+    password = f"abc{number * 3}cba"
+
+    json_data = {
+        "login": login,
+        "email": f"{login}@mail.ru",
+        "password": password
+    }
+
+    response = account_api.post_v1_account(json_data=json_data)
+    assert response.status_code == 201, f"Пользователь {login} не был создан \n Response: {response.json()}"
+
+    # get the letter
+    response = mail_api.get_api_v2_messages()
+    assert response.status_code == 200, "Письма не были получены"
+
+    # activate with token
+    token = get_activation_token_by_login(login=login, response=response)
+    assert token is not None, f"Токен для пользователя {login} не был получен"
+
+    # activate user
+    response = account_api.put_v1_account_token(token=token)
+    assert response.status_code == 200, f"Пользователь {login} не был активирован \n Response: {response.json()}"
+
+    # authorize
+    json_data = {
+        "login": login,
+        "password": password,
+        "rememberMe": True,
+    }
+
+    response = login_api.post_v1_account_login(json_data=json_data)
+    assert response.status_code == 200, f"Пользователь {login} не смог авторизоваться \n Response: {response.json()}"
+
+
+def get_activation_token_by_login(
+        login: str,
+        response: Response,
+):
+    token = None
+    for item in response.json()['items']:
+        user_data = loads(item['Content']['Body'])
+        user_login = user_data['Login']
+        if user_login == login:
+            token = user_data['ConfirmationLinkUrl'].split('/')[-1]
+            print(user_login)
+            print(token)
+    return token
