@@ -7,7 +7,7 @@ from dm_api_account.apis.login_api import LoginApi
 from dm_api_account.apis.account_api import AccountApi
 from api_mailhog.apis.mailhog_api import MailhogApi
 
-from config import Config
+from tests.config import Config
 
 def test_post_v1_account():
 
