@@ -9,7 +9,7 @@ from api_mailhog.apis.mailhog_api import MailhogApi
 
 from config import Config
 
-def test_post_v1_account():
+def test_put_v1_account_email():
 
     main_host = f"{Config.PROTOCOL}://{Config.BASE_URL}"
     api_host = f"{main_host}:{Config.API_PORT}"
@@ -19,16 +19,15 @@ def test_post_v1_account():
     mail_api = MailhogApi(mail_host)
 
     number = random.randint(0, 10000)
-    login = f"scarface_test{number}"
-    password = f"abc{number * 3}cba"
+    email, login, password = create_user_data(number)
 
-    json_data = {
+    reg_json = {
         "login": login,
-        "email": f"{login}@mail.ru",
+        "email": email,
         "password": password
     }
 
-    response = account_api.post_v1_account(json_data=json_data)
+    response = account_api.post_v1_account(json_data=reg_json)
     assert response.status_code == 201, f"Пользователь {login} не был создан \n Response: {response.json()}"
 
     # get the letter
@@ -44,14 +43,53 @@ def test_post_v1_account():
     assert response.status_code == 200, f"Пользователь {login} не был активирован \n Response: {response.json()}"
 
     # authorize
-    json_data = {
+    auth_json = {
         "login": login,
         "password": password,
         "rememberMe": True,
     }
 
-    response = login_api.post_v1_account_login(json_data=json_data)
+    response = login_api.post_v1_account_login(json_data=auth_json)
     assert response.status_code == 200, f"Пользователь {login} не смог авторизоваться \n Response: {response.json()}"
+
+    #change email
+    number = random.randint(0, 10000)
+    email, _, _ = create_user_data(number)
+    reg_json = {
+        "login": login,
+        "password": password,
+        "email": email,
+    }
+
+    response = account_api.put_v1_account_email(json_data=reg_json)
+    assert response.status_code == 200, f"EMail не изменился \n Response: {response.json()}"
+
+    # try to authorize
+    response = login_api.post_v1_account_login(json_data=auth_json)
+    assert response.status_code == 403, f"Пользователь {login} не смог авторизоваться \n Response: {response.json()}"
+
+    # get the letter
+    response = mail_api.get_api_v2_messages()
+    assert response.status_code == 200, "Письма не были получены"
+
+    # get the activation token
+    token = get_activation_token_by_login(login=login, response=response)
+    assert token is not None, f"Токен для пользователя {login} не был получен"
+
+    # activate user
+    response = account_api.put_v1_account_token(token=token)
+    assert response.status_code == 200, f"Пользователь {login} не был активирован \n Response: {response.json()}"
+
+    # authorize
+    response = login_api.post_v1_account_login(json_data=auth_json)
+    assert response.status_code == 200, f"Пользователь {login} не смог авторизоваться \n Response: {response.json()}"
+
+
+def create_user_data(number: int) -> tuple[str, str, str]:
+    login = f"scarface_test{number}"
+    password = f"abc{number * 3}cba"
+    email = f"{login}@mail.ru"
+    return email, login, password
 
 
 def get_activation_token_by_login(

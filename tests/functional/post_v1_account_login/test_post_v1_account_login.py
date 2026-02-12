@@ -3,18 +3,16 @@ from json import loads
 
 from requests import Response
 
-from dm_api_account.apis.login_api import LoginApi
 from dm_api_account.apis.account_api import AccountApi
 from api_mailhog.apis.mailhog_api import MailhogApi
-
 from config import Config
 
-def test_post_v1_account():
+
+def test_put_v1_account_token():
 
     main_host = f"{Config.PROTOCOL}://{Config.BASE_URL}"
     api_host = f"{main_host}:{Config.API_PORT}"
     mail_host = f"{main_host}:{Config.MAIL_PORT}"
-    login_api = LoginApi(api_host)
     account_api = AccountApi(api_host)
     mail_api = MailhogApi(mail_host)
 
@@ -42,16 +40,6 @@ def test_post_v1_account():
     # activate user
     response = account_api.put_v1_account_token(token=token)
     assert response.status_code == 200, f"Пользователь {login} не был активирован \n Response: {response.json()}"
-
-    # authorize
-    json_data = {
-        "login": login,
-        "password": password,
-        "rememberMe": True,
-    }
-
-    response = login_api.post_v1_account_login(json_data=json_data)
-    assert response.status_code == 200, f"Пользователь {login} не смог авторизоваться \n Response: {response.json()}"
 
 
 def get_activation_token_by_login(
