@@ -5,6 +5,8 @@ import structlog.processors
 from dm_api_account.apis.login_api import LoginApi
 from dm_api_account.apis.account_api import AccountApi
 from api_mailhog.apis.mailhog_api import MailhogApi
+from restclient.configuration import Configuration as MailhogConfiguration
+from restclient.configuration import Configuration as DmApiConfiguration
 
 from tests.config import Config
 
@@ -23,11 +25,16 @@ structlog.configure(
 def test_post_v1_account():
 
     main_host = f"{Config.PROTOCOL}://{Config.BASE_URL}"
+
     api_host = f"{main_host}:{Config.API_PORT}"
+    dmapi_configuration = DmApiConfiguration(api_host)
+
     mail_host = f"{main_host}:{Config.MAIL_PORT}"
-    login_api = LoginApi(api_host)
-    account_api = AccountApi(api_host)
-    mail_api = MailhogApi(mail_host)
+    mailhog_configuration = MailhogConfiguration(mail_host)
+
+    login_api = LoginApi(configuration=dmapi_configuration)
+    account_api = AccountApi(configuration=dmapi_configuration)
+    mail_api = MailhogApi(configuration=mailhog_configuration)
 
     number = random.randint(0, 10000)
     login = f"scarface_test{number}"
