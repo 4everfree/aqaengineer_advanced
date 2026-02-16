@@ -10,6 +10,9 @@ from tests.config import Config
 
 from tests.utils.utils import Utils
 
+from restclient.configuration import Configuration as MailhogConfiguration
+from restclient.configuration import Configuration as DmApiConfiguration
+
 structlog.configure(
     processors=[
         structlog.processors.JSONRenderer(
@@ -23,11 +26,16 @@ structlog.configure(
 def test_put_v1_account_email():
 
     main_host = f"{Config.PROTOCOL}://{Config.BASE_URL}"
+
     api_host = f"{main_host}:{Config.API_PORT}"
+    dmapi_configuration = DmApiConfiguration(api_host)
+
     mail_host = f"{main_host}:{Config.MAIL_PORT}"
-    login_api = LoginApi(api_host)
-    account_api = AccountApi(api_host)
-    mail_api = MailhogApi(mail_host)
+    mailhog_configuration = MailhogConfiguration(mail_host)
+
+    login_api = LoginApi(configuration=dmapi_configuration)
+    account_api = AccountApi(configuration=dmapi_configuration)
+    mail_api = MailhogApi(configuration=mailhog_configuration)
 
     number = random.randint(0, 10000)
     email, login, password = create_user_data(number)
