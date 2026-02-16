@@ -1,7 +1,6 @@
 import random
-from json import loads
 
-from requests import Response
+import structlog
 
 from dm_api_account.apis.login_api import LoginApi
 from dm_api_account.apis.account_api import AccountApi
@@ -9,14 +8,34 @@ from api_mailhog.apis.mailhog_api import MailhogApi
 
 from tests.config import Config
 
+from tests.utils.utils import Utils
+
+from restclient.configuration import Configuration as MailhogConfiguration
+from restclient.configuration import Configuration as DmApiConfiguration
+
+structlog.configure(
+    processors=[
+        structlog.processors.JSONRenderer(
+            indent=4,
+            ensure_ascii=True,
+            sort_keys=True
+        )
+    ]
+)
+
 def test_put_v1_account_email():
 
     main_host = f"{Config.PROTOCOL}://{Config.BASE_URL}"
+
     api_host = f"{main_host}:{Config.API_PORT}"
+    dmapi_configuration = DmApiConfiguration(api_host)
+
     mail_host = f"{main_host}:{Config.MAIL_PORT}"
-    login_api = LoginApi(api_host)
-    account_api = AccountApi(api_host)
-    mail_api = MailhogApi(mail_host)
+    mailhog_configuration = MailhogConfiguration(mail_host)
+
+    login_api = LoginApi(configuration=dmapi_configuration)
+    account_api = AccountApi(configuration=dmapi_configuration)
+    mail_api = MailhogApi(configuration=mailhog_configuration)
 
     number = random.randint(0, 10000)
     email, login, password = create_user_data(number)
@@ -35,7 +54,7 @@ def test_put_v1_account_email():
     assert response.status_code == 200, "Письма не были получены"
 
     # activate with token
-    token = get_activation_token_by_login(login=login, response=response)
+    token = Utils.get_activation_token_by_login(login=login, response=response)
     assert token is not None, f"Токен для пользователя {login} не был получен"
 
     # activate user
@@ -73,7 +92,7 @@ def test_put_v1_account_email():
     assert response.status_code == 200, "Письма не были получены"
 
     # get the activation token
-    token = get_activation_token_by_login(login=login, response=response)
+    token = Utils.get_activation_token_by_login(login=login, response=response)
     assert token is not None, f"Токен для пользователя {login} не был получен"
 
     # activate user
@@ -90,18 +109,3 @@ def create_user_data(number: int) -> tuple[str, str, str]:
     password = f"abc{number * 3}cba"
     email = f"{login}@mail.ru"
     return email, login, password
-
-
-def get_activation_token_by_login(
-        login: str,
-        response: Response,
-):
-    token = None
-    for item in response.json()['items']:
-        user_data = loads(item['Content']['Body'])
-        user_login = user_data['Login']
-        if user_login == login:
-            token = user_data['ConfirmationLinkUrl'].split('/')[-1]
-            print(user_login)
-            print(token)
-    return token
