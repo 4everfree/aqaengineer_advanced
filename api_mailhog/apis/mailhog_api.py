@@ -23,6 +23,4 @@ class MailhogApi(RestClient):
             params=params,
             verify=False
         )
-        print(response.status_code)
-        print(response.text)
         return response

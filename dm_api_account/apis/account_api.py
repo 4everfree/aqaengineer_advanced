@@ -18,8 +18,6 @@ class AccountApi(RestClient):
             path="/v1/account",
             json=json_data
         )
-        print(response.status_code)
-        print(response.text)
         return response
 
     def put_v1_account_token(
@@ -34,8 +32,6 @@ class AccountApi(RestClient):
         response = self.put(
             path=f"/v1/account/{token}"
         )
-        print(response.status_code)
-        print(response.text)
         return response
 
     def put_v1_account_email(
@@ -51,6 +47,4 @@ class AccountApi(RestClient):
             path="/v1/account/email",
             json=json_data
         )
-        print(response.status_code)
-        print(response.text)
         return response
