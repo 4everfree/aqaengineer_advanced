@@ -1,5 +1,3 @@
-import random
-
 import structlog.processors
 
 from helpers.account_helper import AccountHelper

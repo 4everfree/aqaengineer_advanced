@@ -1,5 +1,3 @@
-import random
-
 import structlog
 
 from services.api_mailhog import MailHogApi
