@@ -5,8 +5,7 @@ import structlog
 from services.api_mailhog import MailHogApi
 from services.dm_api_account import DMAPIAccount
 from tests.config import Config
-
-from tests.utils.utils import Utils
+from helpers.account_helper import AccountHelper
 
 from restclient.configuration import Configuration as MailhogConfiguration
 from restclient.configuration import Configuration as DmApiConfiguration
@@ -34,75 +33,17 @@ def test_put_v1_account_email():
     account = DMAPIAccount(configuration=dm_api_configuration)
     mail = MailHogApi(configuration=mailhog_configuration)
 
-    number = random.randint(0, 10000)
-    email, login, password = create_user_data(number)
+    account_helper = AccountHelper(dm_account_api=account, mailhog=mail)
 
-    reg_json = {
-        "login": login,
-        "email": email,
-        "password": password
-    }
+    login, password, email = account_helper.create_user_data()
 
-    response = account.account_api.post_v1_account(json_data=reg_json)
-    assert response.status_code == 201, f"Пользователь {login} не был создан \n Response: {response.json()}"
+    account_helper.register_new_user(login=login, password=password, email=email)
+    account_helper.user_login(login=login, password=password)
 
-    # get the letter
-    response = mail.mail_api.get_api_v2_messages()
-    assert response.status_code == 200, "Письма не были получены"
+    _, _, email = account_helper.create_user_data()
+    account_helper.update_account_email(login=login, password=password, email=email)
 
-    # activate with token
-    token = Utils.get_activation_token_by_login(login=login, response=response)
-    assert token is not None, f"Токен для пользователя {login} не был получен"
+    account_helper.user_login(login=login, password=password, status_code=403)
+    account_helper.activate_user(login)
+    account_helper.user_login(login=login, password=password)
 
-    # activate user
-    response = account.account_api.put_v1_account_token(token=token)
-    assert response.status_code == 200, f"Пользователь {login} не был активирован \n Response: {response.json()}"
-
-    # authorize
-    auth_json = {
-        "login": login,
-        "password": password,
-        "rememberMe": True,
-    }
-
-    response = account.login_api.post_v1_account_login(json_data=auth_json)
-    assert response.status_code == 200, f"Пользователь {login} не смог авторизоваться \n Response: {response.json()}"
-
-    #change email
-    number = random.randint(0, 10000)
-    email, _, _ = create_user_data(number)
-    reg_json = {
-        "login": login,
-        "password": password,
-        "email": email,
-    }
-
-    response = account.account_api.put_v1_account_email(json_data=reg_json)
-    assert response.status_code == 200, f"EMail не изменился \n Response: {response.json()}"
-
-    # try to authorize
-    response = account.login_api.post_v1_account_login(json_data=auth_json)
-    assert response.status_code == 403, f"Пользователь {login} не смог авторизоваться \n Response: {response.json()}"
-
-    # get the letter
-    response = mail.mail_api.get_api_v2_messages()
-    assert response.status_code == 200, "Письма не были получены"
-
-    # get the activation token
-    token = Utils.get_activation_token_by_login(login=login, response=response)
-    assert token is not None, f"Токен для пользователя {login} не был получен"
-
-    # activate user
-    response = account.account_api.put_v1_account_token(token=token)
-    assert response.status_code == 200, f"Пользователь {login} не был активирован \n Response: {response.json()}"
-
-    # authorize
-    response = account.login_api.post_v1_account_login(json_data=auth_json)
-    assert response.status_code == 200, f"Пользователь {login} не смог авторизоваться \n Response: {response.json()}"
-
-
-def create_user_data(number: int) -> tuple[str, str, str]:
-    login = f"scarface_test{number}"
-    password = f"abc{number * 3}cba"
-    email = f"{login}@mail.ru"
-    return email, login, password
