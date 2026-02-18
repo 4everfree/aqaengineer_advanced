@@ -1,10 +1,34 @@
 import random
+import time
 from json import loads
 
 from requests import Response
 
 from services.api_mailhog import MailHogApi
 from services.dm_api_account import DMAPIAccount
+
+
+def retrier(
+        function
+):
+    def wrapper(
+            *args,
+            **kwargs
+    ):
+        token = None
+        count = 0
+        while token is None:
+            print(f"Попытка #{count}")
+            token = function(*args, **kwargs)
+            if token:
+                return token
+            count += 1
+            if count == 5:
+                raise AssertionError("Превышено количество попыток получения активациооного токена")
+            time.sleep(1)
+
+    return wrapper
+
 
 
 class AccountHelper:
@@ -49,10 +73,8 @@ class AccountHelper:
             self,
             login: str
     ) -> Response:
-        response = self.mailhog.mail_api.get_api_v2_messages()
-        assert response.status_code == 200, "Письма не были получены"
 
-        token = self.get_activation_token_by_login(login=login, response=response)
+        token = self.get_activation_token_by_login(login=login)
         assert token is not None, f"Токен для пользователя {login} не был получен"
 
         response = self.dm_account_api.account_api.put_v1_account_token(token=token)
@@ -93,11 +115,15 @@ class AccountHelper:
 
         return response
 
-    @staticmethod
+    @retrier
     def get_activation_token_by_login(
+            self,
             login: str,
-            response: Response,
     ) -> str | None:
+
+        token = None
+        response = self.mailhog.mail_api.get_api_v2_messages()
+
         for item in response.json()['items']:
             user_data = loads(item['Content']['Body'])
             user_login = user_data['Login']
