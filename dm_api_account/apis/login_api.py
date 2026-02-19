@@ -19,6 +19,4 @@ class LoginApi(RestClient):
             path="/v1/account/login",
             json=json_data
         )
-        print(response.status_code)
-        print(response.text)
         return response
