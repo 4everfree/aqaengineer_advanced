@@ -48,3 +48,19 @@ class AccountApi(RestClient):
             json=json_data
         )
         return response
+
+    def get_v1_account(
+                self,
+                **kwargs,
+        ):
+            """
+            Get a registered user
+            :param self:
+            :param kwargs:
+            :return:
+            """
+            response = self.get(
+                path="/v1/account",
+                **kwargs
+            )
+            return response

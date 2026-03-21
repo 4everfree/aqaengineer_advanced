@@ -112,15 +112,15 @@ class AccountHelper:
                 return token
         raise AssertionError('No token in the mailbox')
 
-    def create_user_data(
-            self
-    ) -> tuple[str, str, str]:
-        number = self._return_random_number()
-        login = f"scarface_test{number}"
-        password = f"abc{number * 3}cba"
-        email = f"{login}@mail.ru"
-        return login, password, email
+    def auth_client(
+            self,
+            login: str,
+            password: str
+    ):
 
-    @staticmethod
-    def _return_random_number():
-        return random.randint(0, 10000)
+        response = self.dm_account_api.login_api.post_v1_account_login(json_data={"login":login, "password":password })
+        token = {
+          "x-dm-auth-token": response.headers['x-dm-auth-token']
+        }
+        self.dm_account_api.account_api.set_headers(token=token)
+        self.dm_account_api.login_api.set_headers(token=token)
