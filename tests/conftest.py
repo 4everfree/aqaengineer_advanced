@@ -46,24 +46,13 @@ def account_api(api_host):
 @pytest.fixture
 def mailhog_api(mail_host):
     dm_api_configuration = DmApiConfiguration(mail_host)
-    account_api = MailhogApi(configuration=dm_api_configuration)
+    mailhog_api: MailhogApi | None  = MailhogApi(configuration=dm_api_configuration)
     return mailhog_api
 
 @pytest.fixture
 def account_helper(account_api, mailhog_api):
     account_helper = AccountHelper(dm_account_api=account_api, mailhog=mailhog_api)
     return account_helper
-
-#@pytest.fixture
-#def auth_account_helper(api_host, mailhog_api, create_user_data):
-#    dm_api_configuration = DmApiConfiguration(api_host)
-#    account_api = DMAPIAccount(configuration=dm_api_configuration)
-#    account_helper = AccountHelper(dm_account_api=account_api, mailhog=mailhog_api)
-#    account_helper.auth_client(
-#        login=login,
-#        password=password
-#    )
-#    return account_helper
 
 @pytest.fixture
 def create_user_data() -> tuple[str, str, str]:

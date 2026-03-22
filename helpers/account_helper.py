@@ -102,7 +102,7 @@ class AccountHelper:
             login: str,
     ) -> str | None:
 
-        response = self.mailhog.mail_api.get_api_v2_messages()
+        response = self.mailhog.get_api_v2_messages()
 
         for item in response.json()['items']:
             user_data = loads(item['Content']['Body'])
@@ -120,7 +120,14 @@ class AccountHelper:
 
         response = self.dm_account_api.login_api.post_v1_account_login(json_data={"login":login, "password":password })
         token = {
-          "x-dm-auth-token": response.headers['x-dm-auth-token']
+          "x-dm-auth-token": response.headers['X-Dm-Auth-Token']
         }
-        self.dm_account_api.account_api.set_headers(token=token)
-        self.dm_account_api.login_api.set_headers(token=token)
+        self.dm_account_api.account_api.set_headers(headers=token)
+        self.dm_account_api.login_api.set_headers(headers=token)
+
+    def get_user_info(
+            self
+    ) -> Response:
+
+        response = self.dm_account_api.account_api.get_v1_account()
+        return response
