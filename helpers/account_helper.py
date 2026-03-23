@@ -158,6 +158,12 @@ class AccountHelper:
             login: str,
             email: str
     ) -> Response:
+        """
+        To reset the password for a user
+        :param login:
+        :param email:
+        :return:
+        """
         json_data = {
             "login": login,
             "email": email,
@@ -180,6 +186,14 @@ class AccountHelper:
         email: str,
         headers: dict[str, str]
     ) -> str:
+        """
+        To change the password for a user
+        :param login:
+        :param password:
+        :param email:
+        :param headers:
+        :return: a new password
+        """
         self.reset_password(login=login, email=email)
         new_password_mail_token = self.get_password_mail_token(login=login)
         new_password = self.update_account_password(login=login, password=password, token=new_password_mail_token, headers=headers)
