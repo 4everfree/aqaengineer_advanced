@@ -119,12 +119,12 @@ class AccountHelper:
     ):
 
         response = self.dm_account_api.login_api.post_v1_account_login(json_data={"login": login, "password": password})
-        token = {
+        headers = {
             "x-dm-auth-token": response.headers['X-Dm-Auth-Token']
         }
-        self.dm_account_api.account_api.set_headers(headers=token)
-        self.dm_account_api.login_api.set_headers(headers=token)
-        return token
+        self.dm_account_api.account_api.set_headers(headers=headers)
+        self.dm_account_api.login_api.set_headers(headers=headers)
+        return headers
 
     def get_user_info(
             self
@@ -198,3 +198,27 @@ class AccountHelper:
         new_password_mail_token = self.get_password_mail_token(login=login)
         new_password = self.update_account_password(login=login, password=password, token=new_password_mail_token, headers=headers)
         return new_password
+
+    def logout(
+            self,
+            headers : dict[str, str]
+    ):
+        """
+        Logout a user
+        :return:
+        """
+        response = self.dm_account_api.login_api.delete_v1_account_login(headers=headers)
+        assert response.status_code == 204, "Пользователь не разлогинился"
+        return response
+
+    def logout_all_devices(
+            self,
+            headers : dict[str, str]
+    ):
+        """
+        Logout a user from all devices
+        :return:
+        """
+        response = self.dm_account_api.login_api.delete_v1_account_login(headers=headers)
+        assert response.status_code == 204, "Пользователь не разлогинился"
+        return response
