@@ -9,7 +9,6 @@ def test_delete_v1_account_login(account_helper, create_user_data):
 
     response = account_helper.logout(headers=headers)
 
-    # проверить что у нас нельзя получить данные аккаунта
     response = account_helper.get_user_info()
     assert response.status_code == 401, "Неправильный статус код при logout"
     assert response.json()['title'] == 'User must be authenticated', "Неправильный дескрипшен logout"
