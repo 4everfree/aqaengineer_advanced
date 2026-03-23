@@ -56,6 +56,7 @@ class AccountHelper:
     ) -> Response:
 
         token = self.get_activation_token_by_login(login=login)
+        token = token['ConfirmationLinkUrl'].split('/')[-1]
         assert token is not None, f"Токен для пользователя {login} не был получен"
 
         response = self.dm_account_api.account_api.put_v1_account_token(token=token)
@@ -108,8 +109,7 @@ class AccountHelper:
             user_data = loads(item['Content']['Body'])
             user_login = user_data['Login']
             if user_login == login:
-                token = user_data['ConfirmationLinkUrl'].split('/')[-1]
-                return token
+                return user_data
         raise AssertionError('No token in the mailbox')
 
     def auth_client(
@@ -118,12 +118,13 @@ class AccountHelper:
             password: str
     ):
 
-        response = self.dm_account_api.login_api.post_v1_account_login(json_data={"login":login, "password":password })
+        response = self.dm_account_api.login_api.post_v1_account_login(json_data={"login": login, "password": password})
         token = {
-          "x-dm-auth-token": response.headers['X-Dm-Auth-Token']
+            "x-dm-auth-token": response.headers['X-Dm-Auth-Token']
         }
         self.dm_account_api.account_api.set_headers(headers=token)
         self.dm_account_api.login_api.set_headers(headers=token)
+        return token
 
     def get_user_info(
             self
@@ -131,3 +132,44 @@ class AccountHelper:
 
         response = self.dm_account_api.account_api.get_v1_account()
         return response
+
+    def update_account_password(
+            self,
+            login: str,
+            password: str,
+            token: str,
+            headers: dict[str, str]
+    ) -> str:
+        new_password = password + "1"
+        update_password = {
+            "login": login,
+            "token": token,
+            "oldPassword": password,
+            "newPassword": new_password,
+        }
+
+        response = self.dm_account_api.account_api.put_v1_account_password(json_data=update_password, headers=headers)
+        assert response.status_code == 200, f"EMail не изменился \n Response: {response.json()}"
+
+        return new_password
+
+    def reset_password(
+            self,
+            login: str,
+            email: str
+    ) -> Response:
+        json_data = {
+            "login": login,
+            "email": email,
+        }
+
+        response = self.dm_account_api.account_api.post_v1_account_password(json_data=json_data)
+        assert response.status_code == 200, f"Пользователь {login} не был создан \n Response: {response.json()}"
+
+        return response
+
+    def get_password_mail_token(self,
+        login: str,
+    ) -> str:
+        response = self.get_activation_token_by_login(login=login)
+        return response['ConfirmationLinkUri'].split('/')[-1]
