@@ -206,24 +206,24 @@ class AccountHelper:
 
     def logout(
             self,
-            headers : dict[str, str]
+            **kwargs
     ):
         """
         Logout a user
         :return:
         """
-        response = self.dm_account_api.login_api.delete_v1_account_login(headers=headers)
+        response = self.dm_account_api.login_api.delete_v1_account_login(**kwargs)
         assert response.status_code == 204, "Пользователь не разлогинился"
         return response
 
     def logout_all_devices(
             self,
-            headers : dict[str, str]
+            **kwargs
     ):
         """
         Logout a user from all devices
         :return:
         """
-        response = self.dm_account_api.login_api.delete_v1_account_login(headers=headers)
+        response = self.dm_account_api.login_api.delete_v1_account_login(**kwargs)
         assert response.status_code == 204, "Пользователь не разлогинился"
         return response
