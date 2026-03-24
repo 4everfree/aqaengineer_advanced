@@ -143,10 +143,10 @@ class AccountHelper:
             self,
             login: str,
             password: str,
+            new_password: str,
             token: str,
-            headers: dict[str, str]
-    ) -> str:
-        new_password = password + "1"
+            headers: dict[str, str],
+            ):
         update_password = {
             "login": login,
             "token": token,
@@ -156,8 +156,6 @@ class AccountHelper:
 
         response = self.dm_account_api.account_api.put_v1_account_password(json_data=update_password, headers=headers)
         assert response.status_code == 200, f"EMail не изменился \n Response: {response.json()}"
-
-        return new_password
 
     def reset_password(
             self,
@@ -189,6 +187,7 @@ class AccountHelper:
     def change_password(self,
         login: str,
         password: str,
+        new_password: str,
         email: str,
         headers: dict[str, str]
     ) -> str:
@@ -196,14 +195,14 @@ class AccountHelper:
         To change the password for a user
         :param login:
         :param password:
+        :param new_password:
         :param email:
         :param headers:
         :return: a new password
         """
         self.reset_password(login=login, email=email)
         new_password_mail_token = self.get_password_mail_token(login=login)
-        new_password = self.update_account_password(login=login, password=password, token=new_password_mail_token, headers=headers)
-        return new_password
+        self.update_account_password(login=login, password=password, new_password=new_password, token=new_password_mail_token, headers=headers)
 
     def logout(
             self,
