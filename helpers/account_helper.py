@@ -130,7 +130,6 @@ class AccountHelper:
         }
         self.dm_account_api.account_api.set_headers(headers=headers)
         self.dm_account_api.login_api.set_headers(headers=headers)
-        return headers
 
     def get_user_info(
             self
@@ -145,7 +144,6 @@ class AccountHelper:
             password: str,
             new_password: str,
             token: str,
-            headers: dict[str, str],
             ):
         update_password = {
             "login": login,
@@ -154,7 +152,7 @@ class AccountHelper:
             "newPassword": new_password,
         }
 
-        response = self.dm_account_api.account_api.put_v1_account_password(json_data=update_password, headers=headers)
+        response = self.dm_account_api.account_api.put_v1_account_password(json_data=update_password)
         assert response.status_code == 200, f"EMail не изменился \n Response: {response.json()}"
 
     def reset_password(
@@ -189,8 +187,7 @@ class AccountHelper:
         password: str,
         new_password: str,
         email: str,
-        headers: dict[str, str]
-    ) -> str:
+    ):
         """
         To change the password for a user
         :param login:
@@ -202,7 +199,7 @@ class AccountHelper:
         """
         self.reset_password(login=login, email=email)
         new_password_mail_token = self.get_password_mail_token(login=login)
-        self.update_account_password(login=login, password=password, new_password=new_password, token=new_password_mail_token, headers=headers)
+        self.update_account_password(login=login, password=password, new_password=new_password, token=new_password_mail_token)
 
     def logout(
             self,
