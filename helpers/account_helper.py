@@ -55,8 +55,7 @@ class AccountHelper:
             login: str
     ) -> Response:
 
-        token = self.get_activation_token_by_login(login=login)
-        token = token['ConfirmationLinkUrl'].split('/')[-1]
+        token = self.get_token_from_mail(login=login, token_type='activation')
         assert token is not None, f"Токен для пользователя {login} не был получен"
 
         response = self.dm_account_api.account_api.put_v1_account_token(token=token)
@@ -98,10 +97,16 @@ class AccountHelper:
         return response
 
     @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none, wait_fixed=1000)
-    def get_activation_token_by_login(
+    def get_token_from_mail(
             self,
             login: str,
+            token_type: str
     ) -> str | None:
+
+        TOKEN_FIELDS = {
+            "activation": "ConfirmationLinkUrl",
+            "password_reset": "ConfirmationLinkUri",
+        }
 
         response = self.mailhog.get_api_v2_messages()
 
@@ -109,7 +114,8 @@ class AccountHelper:
             user_data = loads(item['Content']['Body'])
             user_login = user_data['Login']
             if user_login == login:
-                return user_data
+                token = user_data[TOKEN_FIELDS[token_type]].split('/')[-1]
+                return token
         raise AssertionError('No token in the mailbox')
 
     def auth_client(
@@ -177,8 +183,8 @@ class AccountHelper:
     def get_password_mail_token(self,
         login: str,
     ) -> str:
-        response = self.get_activation_token_by_login(login=login)
-        return response['ConfirmationLinkUri'].split('/')[-1]
+        token = self.get_token_from_mail(login=login, token_type='password_reset')
+        return token
 
     def change_password(self,
         login: str,
