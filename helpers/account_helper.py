@@ -55,8 +55,7 @@ class AccountHelper:
             login: str
     ) -> Response:
 
-        token = self.get_activation_token_by_login(login=login)
-        token = token['ConfirmationLinkUrl'].split('/')[-1]
+        token = self.get_token_from_mail(login=login, token_type='activation')
         assert token is not None, f"Токен для пользователя {login} не был получен"
 
         response = self.dm_account_api.account_api.put_v1_account_token(token=token)
@@ -98,10 +97,16 @@ class AccountHelper:
         return response
 
     @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none, wait_fixed=1000)
-    def get_activation_token_by_login(
+    def get_token_from_mail(
             self,
             login: str,
+            token_type: str
     ) -> str | None:
+
+        TOKEN_FIELDS = {
+            "activation": "ConfirmationLinkUrl",
+            "password_reset": "ConfirmationLinkUri",
+        }
 
         response = self.mailhog.get_api_v2_messages()
 
@@ -109,7 +114,8 @@ class AccountHelper:
             user_data = loads(item['Content']['Body'])
             user_login = user_data['Login']
             if user_login == login:
-                return user_data
+                token = user_data[TOKEN_FIELDS[token_type]].split('/')[-1]
+                return token
         raise AssertionError('No token in the mailbox')
 
     def auth_client(
@@ -124,7 +130,6 @@ class AccountHelper:
         }
         self.dm_account_api.account_api.set_headers(headers=headers)
         self.dm_account_api.login_api.set_headers(headers=headers)
-        return headers
 
     def get_user_info(
             self
@@ -137,10 +142,9 @@ class AccountHelper:
             self,
             login: str,
             password: str,
+            new_password: str,
             token: str,
-            headers: dict[str, str]
-    ) -> str:
-        new_password = password + "1"
+            ):
         update_password = {
             "login": login,
             "token": token,
@@ -148,10 +152,8 @@ class AccountHelper:
             "newPassword": new_password,
         }
 
-        response = self.dm_account_api.account_api.put_v1_account_password(json_data=update_password, headers=headers)
+        response = self.dm_account_api.account_api.put_v1_account_password(json_data=update_password)
         assert response.status_code == 200, f"EMail не изменился \n Response: {response.json()}"
-
-        return new_password
 
     def reset_password(
             self,
@@ -177,48 +179,48 @@ class AccountHelper:
     def get_password_mail_token(self,
         login: str,
     ) -> str:
-        response = self.get_activation_token_by_login(login=login)
-        return response['ConfirmationLinkUri'].split('/')[-1]
+        token = self.get_token_from_mail(login=login, token_type='password_reset')
+        return token
 
     def change_password(self,
         login: str,
         password: str,
+        new_password: str,
         email: str,
-        headers: dict[str, str]
-    ) -> str:
+    ):
         """
         To change the password for a user
         :param login:
         :param password:
+        :param new_password:
         :param email:
         :param headers:
         :return: a new password
         """
         self.reset_password(login=login, email=email)
         new_password_mail_token = self.get_password_mail_token(login=login)
-        new_password = self.update_account_password(login=login, password=password, token=new_password_mail_token, headers=headers)
-        return new_password
+        self.update_account_password(login=login, password=password, new_password=new_password, token=new_password_mail_token)
 
     def logout(
             self,
-            headers : dict[str, str]
+            **kwargs
     ):
         """
         Logout a user
         :return:
         """
-        response = self.dm_account_api.login_api.delete_v1_account_login(headers=headers)
+        response = self.dm_account_api.login_api.delete_v1_account_login(**kwargs)
         assert response.status_code == 204, "Пользователь не разлогинился"
         return response
 
     def logout_all_devices(
             self,
-            headers : dict[str, str]
+            **kwargs
     ):
         """
         Logout a user from all devices
         :return:
         """
-        response = self.dm_account_api.login_api.delete_v1_account_login(headers=headers)
+        response = self.dm_account_api.login_api.delete_v1_account_login(**kwargs)
         assert response.status_code == 204, "Пользователь не разлогинился"
         return response

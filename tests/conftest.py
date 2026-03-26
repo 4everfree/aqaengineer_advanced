@@ -1,4 +1,5 @@
 import random
+import uuid
 from collections import namedtuple
 
 import pytest
@@ -56,7 +57,7 @@ def account_helper(account_api, mailhog_api):
 
 @pytest.fixture
 def create_user_data() -> tuple[str, str, str]:
-    number = random.randint(0, 10000)
+    number = uuid.uuid4().hex
     login = f"{number}"
     password = f"abc{number * 3}cba"
     email = f"{login}@mail.ru"
