@@ -1,9 +1,14 @@
-import random
-from json import loads
+import json
+from typing import Any
 
 from retrying import retry
 from requests import Response
 
+from dm_api_account.models.login_credentials import LoginCredentials
+from dm_api_account.models.registration import Registration
+from dm_api_account.models.update_password_request import UpdatePasswordRequest
+from dm_api_account.models.user_envelope_response import UserEnvelope
+from dm_api_account.models.user_password import UserPassword
 from services.api_mailhog import MailHogApi
 from services.dm_api_account import DMAPIAccount
 
@@ -27,15 +32,16 @@ class AccountHelper:
             login: str,
             password: str,
             remember_me: bool = True,
+            validate_response: bool = True,
             status_code: int = 200,
     ):
-        json_data = {
-            "login": login,
-            "password": password,
-            "rememberMe": remember_me
-        }
+        login_credentials = LoginCredentials(
+            login=login,
+            password=password,
+            remember_me=remember_me
+        )
 
-        response = self.dm_account_api.login_api.post_v1_account_login(json_data=json_data)
+        response = self.dm_account_api.login_api.post_v1_account_login(login_credentials=login_credentials, validate_response=validate_response)
         assert response.status_code == status_code, f"Response: {response.json()}"
         return response
 
@@ -66,17 +72,19 @@ class AccountHelper:
             self,
             login: str,
             password: str,
-            email: str
-    ) -> Response:
-        reg_json = {
-            "login": login,
-            "password": password,
-            "email": email,
-        }
+            email: str,
+            validation_response: bool = True
+    ) -> UserEnvelope | Any:
+        registration = Registration(
+            login=login,
+            password=password,
+            email=email
+        )
 
-        response = self.dm_account_api.account_api.put_v1_account_email(json_data=reg_json)
+        response = self.dm_account_api.account_api.put_v1_account_email(registration=registration)
         assert response.status_code == 200, f"EMail не изменился \n Response: {response.json()}"
-
+        if validation_response:
+            return UserEnvelope(**response.json())
         return response
 
     def register_user(
@@ -85,13 +93,13 @@ class AccountHelper:
             password: str,
             email: str
     ) -> Response:
-        json_data = {
-            "login": login,
-            "email": email,
-            "password": password
-        }
+        registration = Registration(
+            login=login,
+            email=email,
+            password=password
+        )
 
-        response = self.dm_account_api.account_api.post_v1_account(json_data=json_data)
+        response = self.dm_account_api.account_api.post_v1_account(registration=registration)
         assert response.status_code == 201, f"Пользователь {login} не был создан \n Response: {response.json()}"
 
         return response
@@ -111,7 +119,7 @@ class AccountHelper:
         response = self.mailhog.get_api_v2_messages()
 
         for item in response.json()['items']:
-            user_data = loads(item['Content']['Body'])
+            user_data = json.loads(item['Content']['Body'])
             user_login = user_data['Login']
             if user_login == login:
                 token = user_data[TOKEN_FIELDS[token_type]].split('/')[-1]
@@ -121,10 +129,19 @@ class AccountHelper:
     def auth_client(
             self,
             login: str,
-            password: str
+            password: str,
+            validate_response: bool = True
     ):
 
-        response = self.dm_account_api.login_api.post_v1_account_login(json_data={"login": login, "password": password})
+        login_credentials = LoginCredentials(
+            login=login,
+            password=password
+        )
+
+        response = self.dm_account_api.login_api.post_v1_account_login(login_credentials=login_credentials)
+        print(json.dumps(response.json(), indent=4))
+        if validate_response:
+            UserEnvelope(**response.json())
         headers = {
             "x-dm-auth-token": response.headers['X-Dm-Auth-Token']
         }
@@ -144,37 +161,41 @@ class AccountHelper:
             password: str,
             new_password: str,
             token: str,
+            validate_response: bool = True
             ):
-        update_password = {
-            "login": login,
-            "token": token,
-            "oldPassword": password,
-            "newPassword": new_password,
-        }
 
-        response = self.dm_account_api.account_api.put_v1_account_password(json_data=update_password)
+        update_password = UpdatePasswordRequest(
+            login=login,
+            token=token,
+            oldPassword=password,
+            newPassword=new_password,
+        )
+
+        response = self.dm_account_api.account_api.put_v1_account_password(update_password=update_password)
         assert response.status_code == 200, f"EMail не изменился \n Response: {response.json()}"
+        if validate_response:
+            UserEnvelope(**response.json())
+
+
 
     def reset_password(
             self,
             login: str,
             email: str
-    ) -> Response:
+    ):
         """
         To reset the password for a user
         :param login:
         :param email:
         :return:
         """
-        json_data = {
-            "login": login,
-            "email": email,
-        }
+        user_password = UserPassword(
+            login=login,
+            email=email
+        )
 
-        response = self.dm_account_api.account_api.post_v1_account_password(json_data=json_data)
-        assert response.status_code == 200, f"Пользователь {login} не был создан \n Response: {response.json()}"
-
-        return response
+        response = self.dm_account_api.account_api.post_v1_account_password(user_password=user_password)
+        assert response.status_code == 200, f"Пароль не был сброшен \n Response: {response.json()}"
 
     def get_password_mail_token(self,
         login: str,
@@ -194,7 +215,6 @@ class AccountHelper:
         :param password:
         :param new_password:
         :param email:
-        :param headers:
         :return: a new password
         """
         self.reset_password(login=login, email=email)
