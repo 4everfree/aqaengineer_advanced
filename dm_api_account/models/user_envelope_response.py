@@ -32,7 +32,9 @@ class User(BaseModel):
     location: str = Field(None, alias="location")
     registration: datetime.datetime = Field(None, alias="registration")
 
+class Metadata(BaseModel):
+    email: str = Field(None, alias="email")
 
 class UserEnvelope(BaseModel):
     resource: Optional[User] = None
-    metadata: Optional[str] = None
+    metadata: Optional[Metadata] = None

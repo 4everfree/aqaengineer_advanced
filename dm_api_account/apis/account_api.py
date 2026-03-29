@@ -15,6 +15,7 @@ class AccountApi(RestClient):
     ):
         """
         Register a new user
+        :param validate_response:
         :param registration:
         :return:
         """
@@ -22,13 +23,14 @@ class AccountApi(RestClient):
             path="/v1/account",
             json=registration.model_dump(exclude_none=True, by_alias=True)
         )
+        assert response.status_code == 201, f"Пользователь {registration.login} не был создан \n Response: {response.json()}"
         return response
 
     def put_v1_account_token(
             self,
             token: str,
             validate_response: bool = True,
-    ):
+    ) -> UserEnvelope | requests.Response:
         """
         Activate a registered user
         :param validate_response:
@@ -38,6 +40,7 @@ class AccountApi(RestClient):
         response = self.put(
             path=f"/v1/account/{token}"
         )
+        assert response.status_code == 200, f"Пользователь не был активирован \n Response: {response.json()}"
         if validate_response:
             UserEnvelope(**response.json())
         return response
@@ -45,7 +48,8 @@ class AccountApi(RestClient):
     def put_v1_account_email(
             self,
             registration: Registration,
-    ):
+            validation_response: bool = True,
+    ) -> UserEnvelope | requests.Response:
         """
         Change a registered user email
         :param registration:
@@ -55,47 +59,62 @@ class AccountApi(RestClient):
             path="/v1/account/email",
             json=registration.model_dump(exclude_none=True, by_alias=True)
         )
+        assert response.status_code == 200, f"EMail не изменился \n Response: {response.json()}"
+        if validation_response:
+            return UserEnvelope(**response.json())
         return response
 
     def get_v1_account(
-                self,
-                **kwargs,
-        ):
-            """
-            Get a registered user
-            :param self:
-            :param kwargs:
-            :return:
-            """
-            response = self.get(
-                path="/v1/account",
-                **kwargs
-            )
+            self,
+            validation_response: bool = True,
+            **kwargs,
+    ) -> UserEnvelope | requests.Response:
+        """
+        Get a registered user
+        :param validation_response:
+        :param self:
+        :param kwargs:
+        :return:
+        """
+        response = self.get(
+            path="/v1/account",
+            **kwargs
+        )
+        if validation_response:
             UserEnvelope(**response.json())
-            return response
+        return response
+
 
     def put_v1_account_password(
             self,
             update_password: UserUpdatedPassword,
-    ):
+            validation_response: bool = True,
+    ) -> UserEnvelope | requests.Response:
         """
         Change a registered user email
-        :param json_data:
+        :param validation_response:
+        :param update_password:
         :return:
         """
         response = self.put(
             path="/v1/account/password",
             json=update_password.model_dump(exclude_none=True, by_alias=True)
         )
-        UserEnvelope(**response.json())
+        assert response.status_code == 200, f"EMail не изменился \n Response: {response.json()}"
+        if validation_response:
+            UserEnvelope(**response.json())
         return response
+
 
     def post_v1_account_password(
             self,
             user_password: UserPassword,
-    ):
+            validation_response: bool = True,
+    ) -> UserEnvelope | requests.Response:
         """
         Reset a registered user password
+        :param validation_response:
+        :param self:
         :param user_password:
         :return:
         """
@@ -104,4 +123,6 @@ class AccountApi(RestClient):
             json=user_password.model_dump(exclude_none=True, by_alias=True)
         )
         assert response.status_code == 200
+        if validation_response:
+            return UserEnvelope(**response.json())
         return response

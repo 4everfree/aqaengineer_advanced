@@ -1,6 +1,7 @@
 import json
 from typing import Any
 
+import requests
 from retrying import retry
 from requests import Response
 
@@ -53,7 +54,6 @@ class AccountHelper:
     ):
         response = self.register_user(login, password, email)
         response = self.activate_user(login)
-
         return response
 
     def activate_user(
@@ -65,7 +65,6 @@ class AccountHelper:
         assert token is not None, f"Токен для пользователя {login} не был получен"
 
         response = self.dm_account_api.account_api.put_v1_account_token(token=token)
-        assert response.status_code == 200, f"Пользователь {login} не был активирован \n Response: {response.json()}"
         return response
 
     def update_account_email(
@@ -74,24 +73,21 @@ class AccountHelper:
             password: str,
             email: str,
             validation_response: bool = True
-    ) -> UserEnvelope | Any:
+    ) -> UserEnvelope | requests.Response:
         registration = Registration(
             login=login,
             password=password,
             email=email
         )
 
-        response = self.dm_account_api.account_api.put_v1_account_email(registration=registration)
-        assert response.status_code == 200, f"EMail не изменился \n Response: {response.json()}"
-        if validation_response:
-            return UserEnvelope(**response.json())
+        response = self.dm_account_api.account_api.put_v1_account_email(registration=registration, validation_response=validation_response)
         return response
 
     def register_user(
             self,
             login: str,
             password: str,
-            email: str
+            email: str,
     ) -> Response:
         registration = Registration(
             login=login,
@@ -100,8 +96,6 @@ class AccountHelper:
         )
 
         response = self.dm_account_api.account_api.post_v1_account(registration=registration)
-        assert response.status_code == 201, f"Пользователь {login} не был создан \n Response: {response.json()}"
-
         return response
 
     @retry(stop_max_attempt_number=5, retry_on_result=retry_if_result_none, wait_fixed=1000)
@@ -138,10 +132,8 @@ class AccountHelper:
             password=password
         )
 
-        response = self.dm_account_api.login_api.post_v1_account_login(login_credentials=login_credentials)
-        print(json.dumps(response.json(), indent=4))
-        if validate_response:
-            UserEnvelope(**response.json())
+        response = self.dm_account_api.login_api.post_v1_account_login(login_credentials=login_credentials, validate_response=validate_response)
+
         headers = {
             "x-dm-auth-token": response.headers['X-Dm-Auth-Token']
         }
@@ -171,17 +163,15 @@ class AccountHelper:
             newPassword=new_password,
         )
 
-        response = self.dm_account_api.account_api.put_v1_account_password(update_password=update_password)
-        assert response.status_code == 200, f"EMail не изменился \n Response: {response.json()}"
-        if validate_response:
-            UserEnvelope(**response.json())
+        self.dm_account_api.account_api.put_v1_account_password(update_password=update_password, validation_response=validate_response)
 
 
 
     def reset_password(
             self,
             login: str,
-            email: str
+            email: str,
+            validate_response: bool = True
     ):
         """
         To reset the password for a user
@@ -194,7 +184,7 @@ class AccountHelper:
             email=email
         )
 
-        response = self.dm_account_api.account_api.post_v1_account_password(user_password=user_password)
+        response = self.dm_account_api.account_api.post_v1_account_password(user_password=user_password, validation_response=validate_response)
         assert response.status_code == 200, f"Пароль не был сброшен \n Response: {response.json()}"
 
     def get_password_mail_token(self,
@@ -217,7 +207,7 @@ class AccountHelper:
         :param email:
         :return: a new password
         """
-        self.reset_password(login=login, email=email)
+        self.reset_password(login=login, email=email, validate_response=False)
         new_password_mail_token = self.get_password_mail_token(login=login)
         self.update_account_password(login=login, password=password, new_password=new_password, token=new_password_mail_token)
 
