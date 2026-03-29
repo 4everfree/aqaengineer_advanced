@@ -34,6 +34,7 @@ class AccountHelper:
             password: str,
             remember_me: bool = True,
             validate_response: bool = True,
+            validate_headers: bool = True,
             status_code: int = 200,
     ):
         login_credentials = LoginCredentials(
@@ -43,7 +44,10 @@ class AccountHelper:
         )
 
         response = self.dm_account_api.login_api.post_v1_account_login(login_credentials=login_credentials, validate_response=validate_response)
-        assert response.status_code == status_code, f"Response: {response.json()}"
+
+        if validate_headers:
+            assert response.status_code == status_code, f"Wrong status code: {response.status_code}"
+            assert response.headers["x-dm-auth-token"], f"Response: {response.json()}"
         return response
 
     def register_new_user(
